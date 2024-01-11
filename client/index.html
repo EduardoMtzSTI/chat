@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+</head>
+<style>
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    :root {
+        color-scheme: light dark;
+    }
+
+    body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        display: grid;
+        place-content: center;
+        height: 100vh;
+        padding: 30px;
+        grid-template-rows: 1fr;
+        padding-bottom: 50px;
+    }
+
+    #chatBox {
+        border: 1px solid lightgray;
+        border-radius: 5px;
+        overflow: hidden;
+        width: 400px;
+        height: 100%;
+        position: relative;
+        padding-bottom: 50px;
+    }
+
+    form {
+        bottom: 0;
+        display: flex;
+        height: 50px;
+        left: 0;
+        padding: 5px;
+        position: absolute;
+        right: 0;
+    }
+
+    #input {
+        border-radius: 5px;
+        border: 0px solid lightgray;
+        flex: 1;
+        margin: 4px;
+        padding: 0 10px
+    }
+
+    #input:focus {
+        outline: 0;
+    }
+
+    #form>button {
+        background-color: rgb(103, 184, 211);
+        color: white;
+        border: 0;
+        margin: 4px;
+        border-radius: 5px;
+    }
+
+    #form>button:hover {
+        background-color: rgb(99, 139, 192);
+    }
+
+    #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        overflow-y: scroll;
+        height: 100%;
+        scroll-behavior: smooth;
+    }
+
+    #messages>li {
+        padding: .5rem 1rem;
+    }
+
+    #messages>li:nth-child(odd) {
+        background-color: #eee;
+    }
+
+    #messages>li>p {
+        margin: 5px;
+        margin-left: 35px;
+    }
+
+    #messages>li>div {
+        width: 100%;
+        height: 30px;
+        display: flex;
+        align-items: center;
+    }
+
+    #messages>li>div>img {
+        width: 30px;
+        border-radius: 50%;
+        border: 1px solid lightgray;
+    }
+
+    #messages>li>div>small {
+        margin-left: 5px;
+    }
+</style>
+<script type="module">
+
+    import { io } from "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
+
+    const form = document.getElementById('form')
+    const input = document.getElementById('input')
+    const messages = document.getElementById('messages')
+
+    const setUser = async () => {
+
+        const userStoraged = localStorage.getItem('user')
+        if (userStoraged) {
+            console.log("user existed " + userStoraged)
+            return JSON.parse(userStoraged)
+        }
+        const res = await fetch('https://random-data-api.com/api/v2/users')
+        const randomUser = await res.json()
+        const user = {
+            username: randomUser.username,
+            avatar: randomUser.avatar,
+        }
+        localStorage.setItem('user', JSON.stringify(user))
+        return user
+    }
+
+    const socket = io({
+        auth: {
+            serverOffset: 0,
+            user: await setUser()
+        }
+    })
+
+    socket.on('chat message', (msg, serverOffset, user) => {
+        console.log("user: " + user)
+        //const dataUser = JSON.parse(user)
+        const message = `
+            <li>
+                <div>
+                    <img src="${user.avatar}" alt="">
+                    <small>${user.username}</small>
+                </div>
+                <p>${msg}</p>
+            </li>`
+        messages.insertAdjacentHTML('beforeend', message)
+        socket.auth.serverOffset = serverOffset
+        messages.scrollTop = messages.scrollHeight
+    })
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault()
+        if (input.value) {
+            socket.emit('chat message', input.value)
+            input.value = ''
+        }
+    })
+
+</script>
+
+<body>
+    <section id="chatBox">
+        <ul id="messages"></ul>
+        <form id="form">
+            <input type="text" name="message" id="input" placeholder="Escribe un mensaje" autocomplete="off">
+            <button type="submit">Enviar</button>
+        </form>
+    </section>
+</body>
+
+</html>
